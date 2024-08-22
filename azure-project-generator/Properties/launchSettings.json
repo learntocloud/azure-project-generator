@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "azure_project_generator": {
+      "commandName": "Project",
+      "commandLineArgs": "--port 7204",
+      "launchBrowser": false
+    }
+  }
+}
