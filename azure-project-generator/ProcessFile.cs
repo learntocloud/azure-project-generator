@@ -85,8 +85,8 @@ namespace azure_project_generator
             // TODO generate embeddings
 
 
-            var certificationData = JsonConvert.DeserializeObject<Certification>(content);
-            await GenerateEmbeddings(certificationData.CertificationName);
+            var mappedServiceData = JsonConvert.DeserializeObject<MappedService>(content);
+            await GenerateEmbeddings(mappedServiceData.CertificationName);
 
 
 
@@ -113,11 +113,8 @@ namespace azure_project_generator
         }
                 private void ValidateJsonContent(string content)
         {
-            var generator = new JSchemaGenerator
-            {
-                ContractResolver = new CamelCasePropertyNamesContractResolver()
-            };
-            JSchema schema = generator.Generate(typeof(Certification));
+            var generator = new JSchemaGenerator();
+            JSchema schema = generator.Generate(typeof(MappedService));
 
             JToken jsonContent = JToken.Parse(content);
             IList<string> messages;
