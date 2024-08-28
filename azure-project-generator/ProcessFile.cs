@@ -13,10 +13,7 @@ namespace azure_project_generator
     public class ProcessFile
     {
         private readonly ILogger<ProcessFile> _logger;
-
         private readonly EmbeddingClient _embeddingClient;
-
-
         public ProcessFile(ILogger<ProcessFile> logger)
         {
             _logger = logger;
@@ -40,9 +37,10 @@ namespace azure_project_generator
 
         }
 
-
         [Function(nameof(ProcessFile))]
-        public async Task Run([BlobTrigger("certdata/{name}", Connection = "AzureWebJobsStorage")] Stream stream, string name)
+        [CosmosDBOutput("%CosmosDb%", "%CosmosContainerOut%", Connection = "CosmosDBConnection")]
+        public async Task<CertServiceDocument> Run(
+            [BlobTrigger("certdata/{name}", Connection = "AzureWebJobsStorage")] Stream stream, string name)
         {
             string content;
             try
@@ -53,7 +51,7 @@ namespace azure_project_generator
             catch (IOException ex)
             {
                 _logger.LogError($"Error reading blob content: {ex.Message}");
-                return;
+                return null;
             }
 
             _logger.LogInformation($"C# Blob trigger function Processed blob\n Name: {name}");
@@ -61,13 +59,12 @@ namespace azure_project_generator
             if (string.IsNullOrWhiteSpace(content))
             {
                 _logger.LogError("Blob content is empty or whitespace.");
-                return;
+                return null;
             }
 
             try
             {
                 ValidateJsonContent(content);
-
             }
             catch (JsonReaderException ex)
             {
@@ -79,37 +76,49 @@ namespace azure_project_generator
             }
 
             var mappedServiceData = JsonConvert.DeserializeObject<MappedService>(content);
-           
-            string contextSentence = 
+
+            string contextSentence =
                 $"The {mappedServiceData.CertificationCode} {mappedServiceData.CertificationName} certification includes the skill of {mappedServiceData.SkillName}. Within this skill, there is a focus on the topic of {mappedServiceData.TopicName}, particularly through the use of the service {mappedServiceData.ServiceName}.";
 
-            await GenerateEmbeddings(contextSentence);
-           
+            List<float> contentVector = await GenerateEmbeddings(contextSentence);
+            CertServiceDocument certServiceDocument = new CertServiceDocument();
+            certServiceDocument.id = Guid.NewGuid().ToString();
+            certServiceDocument.CertificationServiceKey = $"{mappedServiceData.CertificationCode}-{mappedServiceData.ServiceName}";
+            certServiceDocument.CertificationCode = mappedServiceData.CertificationCode;
+            certServiceDocument.CertificationName = mappedServiceData.CertificationName;
+            certServiceDocument.SkillName = mappedServiceData.SkillName;
+            certServiceDocument.TopicName = mappedServiceData.TopicName;
+            certServiceDocument.ServiceName = mappedServiceData.ServiceName;
+            certServiceDocument.ContextSentence = contextSentence;
+            certServiceDocument.ContextVector = contentVector.ToArray();
+
+            _logger.LogInformation("Document created successfully.");
+
+            return certServiceDocument;
 
         }
-
-        private async Task GenerateEmbeddings(string content)
+        private async Task<List<float>> GenerateEmbeddings(string content)
         {
-            
             try
             {
                 _logger.LogInformation("Generating embedding...");
-                Embedding embedding = await _embeddingClient.GenerateEmbeddingAsync(content).ConfigureAwait(false);
+                var embeddingResult = await _embeddingClient.GenerateEmbeddingAsync(content).ConfigureAwait(false);
+                List<float> embeddingVector = embeddingResult.Value.Vector.ToArray().ToList();
                 _logger.LogInformation("Embedding created successfully.");
-                // save to cosmos
-
-
+                return embeddingVector;
             }
             catch (RequestFailedException ex)
             {
                 _logger.LogError($"Azure OpenAI API request failed: {ex.Message}");
+                throw; // Re-throw the exception to ensure the caller is aware of the failure
             }
             catch (Exception ex)
             {
                 _logger.LogError($"Error generating embedding: {ex.Message}");
+                throw; // Re-throw the exception to ensure the caller is aware of the failure
             }
         }
-                private void ValidateJsonContent(string content)
+        private void ValidateJsonContent(string content)
         {
             var generator = new JSchemaGenerator();
             JSchema schema = generator.Generate(typeof(MappedService));
