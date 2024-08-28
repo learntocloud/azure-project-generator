@@ -1,5 +1,5 @@
-using Azure.AI.OpenAI;
 using Azure;
+using Azure.AI.OpenAI;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
@@ -14,130 +14,143 @@ namespace azure_project_generator
     {
         private readonly ILogger<ProcessFile> _logger;
         private readonly EmbeddingClient _embeddingClient;
-        public ProcessFile(ILogger<ProcessFile> logger)
+
+        public ProcessFile(ILogger<ProcessFile> logger,
+            EmbeddingClient embeddingClient)
         {
-            _logger = logger;
-            // Initialize and validate environment variables
-            string keyFromEnvironment = Environment.GetEnvironmentVariable("AZURE_OPENAI_API_KEY");
-            string endpointFromEnvironment = Environment.GetEnvironmentVariable("AZURE_OPENAI_API_ENDPOINT");
-            string embeddingsDeployment = Environment.GetEnvironmentVariable("EMBEDDINGS_DEPLOYMENT");
-
-            if (string.IsNullOrEmpty(keyFromEnvironment) || string.IsNullOrEmpty(endpointFromEnvironment) || string.IsNullOrEmpty(embeddingsDeployment))
-            {
-                _logger.LogError("Environment variables for Azure OpenAI API are not set properly.");
-                throw new InvalidOperationException("Required environment variables are missing.");
-            }
-
-            // Initialize Azure OpenAI client
-            AzureOpenAIClient azureClient = new(
-                new Uri(endpointFromEnvironment),
-                new AzureKeyCredential(keyFromEnvironment));
-
-            _embeddingClient = azureClient.GetEmbeddingClient(embeddingsDeployment);
-
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _embeddingClient = embeddingClient ?? throw new ArgumentNullException(nameof(embeddingClient));
         }
 
         [Function(nameof(ProcessFile))]
-        [CosmosDBOutput("%CosmosDb%", "%CosmosContainerOut%", Connection = "CosmosDBConnection")]
-        public async Task<CertServiceDocument> Run(
-            [BlobTrigger("certdata/{name}", Connection = "AzureWebJobsStorage")] Stream stream, string name)
+        public async Task<MultipleOutput> Run(
+           [BlobTrigger("certdata/{name}", Connection = "AzureWebJobsStorage")] string content,
+           string name)
         {
-            string content;
-            try
-            {
-                using var blobStreamReader = new StreamReader(stream);
-                content = await blobStreamReader.ReadToEndAsync();
-            }
-            catch (IOException ex)
-            {
-                _logger.LogError($"Error reading blob content: {ex.Message}");
-                return null;
-            }
-
-            _logger.LogInformation($"C# Blob trigger function Processed blob\n Name: {name}");
+            _logger.LogInformation($"Processing blob: {name}");
 
             if (string.IsNullOrWhiteSpace(content))
             {
                 _logger.LogError("Blob content is empty or whitespace.");
-                return null;
+                return new MultipleOutput { CertServiceDocument = null, ArchivedContent = null};
             }
 
-            try
+            if (!ValidateJsonContent(content))
             {
-                ValidateJsonContent(content);
-            }
-            catch (JsonReaderException ex)
-            {
-                _logger.LogError($"JSON parsing error: {ex.Message}");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"An unexpected error occurred: {ex.Message}");
+                return new MultipleOutput { CertServiceDocument = null, ArchivedContent = null};
             }
 
             var mappedServiceData = JsonConvert.DeserializeObject<MappedService>(content);
+            if (mappedServiceData == null)
+            {
+                _logger.LogError("Failed to deserialize content to MappedService.");
+                return new MultipleOutput { CertServiceDocument = null, ArchivedContent = null};
+            }
 
-            string contextSentence =
-                $"The {mappedServiceData.CertificationCode} {mappedServiceData.CertificationName} certification includes the skill of {mappedServiceData.SkillName}. Within this skill, there is a focus on the topic of {mappedServiceData.TopicName}, particularly through the use of the service {mappedServiceData.ServiceName}.";
+            string contextSentence = GenerateContextSentence(mappedServiceData);
+            float[] contentVector = await GenerateEmbeddingsAsync(contextSentence);
 
-            List<float> contentVector = await GenerateEmbeddings(contextSentence);
-            CertServiceDocument certServiceDocument = new CertServiceDocument();
-            certServiceDocument.id = Guid.NewGuid().ToString();
-            certServiceDocument.CertificationServiceKey = $"{mappedServiceData.CertificationCode}-{mappedServiceData.ServiceName}";
-            certServiceDocument.CertificationCode = mappedServiceData.CertificationCode;
-            certServiceDocument.CertificationName = mappedServiceData.CertificationName;
-            certServiceDocument.SkillName = mappedServiceData.SkillName;
-            certServiceDocument.TopicName = mappedServiceData.TopicName;
-            certServiceDocument.ServiceName = mappedServiceData.ServiceName;
-            certServiceDocument.ContextSentence = contextSentence;
-            certServiceDocument.ContextVector = contentVector.ToArray();
+            var certServiceDocument = CreateCertServiceDocument(mappedServiceData, contextSentence, contentVector);
 
             _logger.LogInformation("Document created successfully.");
+            _logger.LogInformation($"Archiving blob: {name}");
 
-            return certServiceDocument;
-
+            return new MultipleOutput
+            {
+                CertServiceDocument = certServiceDocument,
+                ArchivedContent = content
+               
+            };
         }
-        private async Task<List<float>> GenerateEmbeddings(string content)
+
+
+        private async Task<string> ReadBlobContentAsync(Stream stream)
+        {
+            try
+            {
+                using var reader = new StreamReader(stream);
+                return await reader.ReadToEndAsync();
+            }
+            catch (IOException ex)
+            {
+                _logger.LogError(ex, "Error reading blob content");
+                return null;
+            }
+        }
+
+        private bool ValidateJsonContent(string content)
+        {
+            try
+            {
+                var generator = new JSchemaGenerator();
+                JSchema schema = generator.Generate(typeof(MappedService));
+
+                JToken jsonContent = JToken.Parse(content);
+                bool isValid = jsonContent.IsValid(schema, out IList<string> messages);
+
+                if (!isValid)
+                {
+                    foreach (var message in messages)
+                    {
+                        _logger.LogError($"Schema validation error: {message}");
+                    }
+                }
+                else
+                {
+                    _logger.LogInformation("JSON content is valid against the schema.");
+                }
+
+                return isValid;
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogError(ex, "JSON parsing error during validation");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unexpected error during JSON validation");
+                return false;
+            }
+        }
+
+        private string GenerateContextSentence(MappedService data) =>
+            $"The {data.CertificationCode} {data.CertificationName} certification includes the skill of {data.SkillName}. Within this skill, there is a focus on the topic of {data.TopicName}, particularly through the use of the service {data.ServiceName}.";
+
+        private async Task<float[]> GenerateEmbeddingsAsync(string content)
         {
             try
             {
                 _logger.LogInformation("Generating embedding...");
                 var embeddingResult = await _embeddingClient.GenerateEmbeddingAsync(content).ConfigureAwait(false);
-                List<float> embeddingVector = embeddingResult.Value.Vector.ToArray().ToList();
                 _logger.LogInformation("Embedding created successfully.");
-                return embeddingVector;
+                return embeddingResult.Value.Vector.ToArray();
+              
             }
             catch (RequestFailedException ex)
             {
-                _logger.LogError($"Azure OpenAI API request failed: {ex.Message}");
-                throw; // Re-throw the exception to ensure the caller is aware of the failure
+                _logger.LogError(ex, "Azure OpenAI API request failed");
+                throw;
             }
             catch (Exception ex)
             {
-                _logger.LogError($"Error generating embedding: {ex.Message}");
-                throw; // Re-throw the exception to ensure the caller is aware of the failure
+                _logger.LogError(ex, "Error generating embedding");
+                throw;
             }
         }
-        private void ValidateJsonContent(string content)
-        {
-            var generator = new JSchemaGenerator();
-            JSchema schema = generator.Generate(typeof(MappedService));
 
-            JToken jsonContent = JToken.Parse(content);
-            IList<string> messages;
-            bool valid = jsonContent.IsValid(schema, out messages);
-
-            if (!valid)
+        private CertServiceDocument CreateCertServiceDocument(MappedService data, string contextSentence, float[] contentVector) =>
+            new CertServiceDocument
             {
-                foreach (var message in messages)
-                {
-                    _logger.LogError($"Schema validation error: {message}");
-                }
-            }
-            else
-            {
-                _logger.LogInformation("JSON content is valid against the schema.");
-            }
-        }
+                id = Guid.NewGuid().ToString(),
+                CertificationServiceKey = $"{data.CertificationCode}-{data.ServiceName}",
+                CertificationCode = data.CertificationCode,
+                CertificationName = data.CertificationName,
+                SkillName = data.SkillName,
+                TopicName = data.TopicName,
+                ServiceName = data.ServiceName,
+                ContextSentence = contextSentence,
+                ContextVector = contentVector
+            };
     }
 }
