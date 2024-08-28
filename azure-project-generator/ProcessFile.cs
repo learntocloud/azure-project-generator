@@ -6,8 +6,6 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Schema;
 using Newtonsoft.Json.Schema.Generation;
-using Newtonsoft.Json.Serialization;
-using OpenAI.Chat;
 using OpenAI.Embeddings;
 
 namespace azure_project_generator
@@ -80,16 +78,13 @@ namespace azure_project_generator
                 _logger.LogError($"An unexpected error occurred: {ex.Message}");
             }
 
-
-
-            // TODO generate embeddings
-
-
             var mappedServiceData = JsonConvert.DeserializeObject<MappedService>(content);
-            await GenerateEmbeddings(mappedServiceData.CertificationName);
+           
+            string contextSentence = 
+                $"The {mappedServiceData.CertificationCode} {mappedServiceData.CertificationName} certification includes the skill of {mappedServiceData.SkillName}. Within this skill, there is a focus on the topic of {mappedServiceData.TopicName}, particularly through the use of the service {mappedServiceData.ServiceName}.";
 
-
-
+            await GenerateEmbeddings(contextSentence);
+           
 
         }
 
@@ -101,6 +96,9 @@ namespace azure_project_generator
                 _logger.LogInformation("Generating embedding...");
                 Embedding embedding = await _embeddingClient.GenerateEmbeddingAsync(content).ConfigureAwait(false);
                 _logger.LogInformation("Embedding created successfully.");
+                // save to cosmos
+
+
             }
             catch (RequestFailedException ex)
             {
@@ -132,8 +130,5 @@ namespace azure_project_generator
                 _logger.LogInformation("JSON content is valid against the schema.");
             }
         }
-
-
-
     }
 }
