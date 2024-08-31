@@ -1,2 +1,5 @@
 # For more info on HTTP files go to https://aka.ms/vs/httpfile
 GET http://localhost:7204/api/Function1
+
+### 
+GET http://localhost:7204/api/GenerateProject?certificationCode=AZ-104

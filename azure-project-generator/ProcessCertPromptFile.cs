@@ -18,7 +18,7 @@ namespace azure_project_generator
             EmbeddingClient embeddingClient,
             JsonValidationService jsonValidationService,
             ContentGenerationService contentGenerationService)
-        {
+        {                                       
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _embeddingClient = embeddingClient ?? throw new ArgumentNullException(nameof(embeddingClient));
             _jsonValidationService = jsonValidationService ?? throw new ArgumentNullException(nameof(jsonValidationService));
