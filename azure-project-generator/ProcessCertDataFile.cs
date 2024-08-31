@@ -4,28 +4,32 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using OpenAI.Embeddings;
+using Azure.Storage.Blobs;
+using System.Text;
 
 namespace azure_project_generator
 {
-    public class ProcessCertPromptFile
+    public class ProcessCertDataFile
     {
         private readonly ILogger<ProcessCertServiceFile> _logger;
         private readonly EmbeddingClient _embeddingClient;
         private readonly JsonValidationService _jsonValidationService;
         private readonly ContentGenerationService _contentGenerationService;
+        private readonly BlobServiceClient _blobServiceClient;
 
-        public ProcessCertPromptFile(ILogger<ProcessCertServiceFile> logger,
+        public ProcessCertDataFile(ILogger<ProcessCertServiceFile> logger,
             EmbeddingClient embeddingClient,
             JsonValidationService jsonValidationService,
-            ContentGenerationService contentGenerationService)
+            ContentGenerationService contentGenerationService, BlobServiceClient blobServiceClient)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _embeddingClient = embeddingClient ?? throw new ArgumentNullException(nameof(embeddingClient));
             _jsonValidationService = jsonValidationService ?? throw new ArgumentNullException(nameof(jsonValidationService));
             _contentGenerationService = contentGenerationService ?? throw new ArgumentNullException(nameof(contentGenerationService));
+            _blobServiceClient = blobServiceClient ?? throw new ArgumentNullException(nameof(blobServiceClient));
         }
 
-        [Function(nameof(ProcessCertPromptFile))]
+        [Function(nameof(ProcessCertDataFile))]
         public async Task<CertificationProjectPromptOutput> Run([BlobTrigger("certdata/{name}", Connection = "AzureWebJobsStorage")] string content, string name)
         {
 
@@ -46,6 +50,34 @@ namespace azure_project_generator
                 _logger.LogError("Failed to deserialize content to MappedService.");
                 return new CertificationProjectPromptOutput { Document = null, ArchivedContent = null };
             }
+
+            // create a json file for each service in the certification
+
+            foreach (var skill in certification.SkillsMeasured)
+            {
+                foreach (var topic in skill.Topics)
+                {
+                    foreach (var service in topic.Services)
+                    {
+                        var serviceData = new CertificationService
+                        {
+                            CertificationCode = certification.CertificationCode,
+                            CertificationName = certification.CertificationName,
+                            SkillName = skill.Name,
+                            TopicName = topic.TopicName,
+                            ServiceName = service
+                        };
+                        BlobContainerClient blobContainerClient = _blobServiceClient.GetBlobContainerClient("certservice");
+                        var serviceJson = JsonConvert.SerializeObject(serviceData);
+                        var serviceBlobName = $"{certification.CertificationCode}-{serviceData.ServiceName}.json";
+                        
+                        BlobClient blobClient = blobContainerClient.GetBlobClient(serviceBlobName);
+                        await blobClient.UploadAsync(new MemoryStream(Encoding.UTF8.GetBytes(serviceJson)), true);
+                    }
+                }
+            }
+               
+
 
             string contextSentence = _contentGenerationService.GenerateCertDataContextSentence(certification);
             float[] contentVector = await _contentGenerationService.GenerateEmbeddingsAsync(contextSentence);
