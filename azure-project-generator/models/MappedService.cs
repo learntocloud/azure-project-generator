@@ -1,13 +1,8 @@
 ﻿using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace azure_project_generator
+namespace azure_project_generator.models
 {
-    internal class MappedService
+    public class MappedService
     {
         [JsonProperty("certificationCode")]
         public string CertificationCode { get; set; }

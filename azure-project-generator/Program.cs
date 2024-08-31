@@ -1,7 +1,7 @@
 using Azure;
 using Azure.AI.OpenAI;
+using azure_project_generator.services;
 using Microsoft.Azure.Functions.Worker;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -31,6 +31,12 @@ var host = new HostBuilder()
 
         // Register EmbeddingClient as a singleton
         services.AddSingleton(azureClient.GetEmbeddingClient(embeddingsDeployment));
+
+        // Register JsonValidationService
+        services.AddSingleton<JsonValidationService>();
+
+        // Register ContentGenerationService
+        services.AddSingleton<ContentGenerationService>();
     })
     .Build();
 
