@@ -5,16 +5,14 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace azure_project_generator
+namespace azure_project_generator.models
 {
-    public class MultipleOutput
+    public class CertificationProjectPromptOutput
     {
-
-        [CosmosDBOutput("%CosmosDb%", "%CosmosContainerOut%", Connection = "CosmosDBConnection")]
-        public CertServiceDocument CertServiceDocument { get; set; }
+        [CosmosDBOutput("%CosmosDb%", "%CertificationPromptOut%", Connection = "CosmosDBConnection")]
+        public CertificationProjectPromptDocument Document { get; set; }
 
         [BlobOutput("certdataarchive/{name}", Connection = "AzureWebJobsStorage")]
         public string ArchivedContent { get; set; }
-
     }
 }

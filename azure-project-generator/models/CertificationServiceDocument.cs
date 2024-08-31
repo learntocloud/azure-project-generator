@@ -1,16 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Text.Json.Serialization;
-using System.Threading.Tasks;
+﻿using System.Text.Json.Serialization;
 
-namespace azure_project_generator
+namespace azure_project_generator.models
 {
-    public class CertServiceDocument
+    public class CertificationServiceDocument
     {
         [JsonPropertyName("id")]
-        public string id { get; set; }  // Unique identifier for the document
+        public string Id { get; set; }  // Unique identifier for the document
 
         [JsonPropertyName("certificationServiceKey")]
         public string CertificationServiceKey { get; set; }  // Composite key
