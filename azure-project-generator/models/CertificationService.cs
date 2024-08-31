@@ -2,7 +2,7 @@
 
 namespace azure_project_generator.models
 {
-    public class MappedService
+    public class CertificationService
     {
         [JsonProperty("certificationCode")]
         public string CertificationCode { get; set; }

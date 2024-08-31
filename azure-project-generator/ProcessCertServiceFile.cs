@@ -38,12 +38,12 @@ namespace azure_project_generator
                 return new CertificationServiceOutput { Document = null, ArchivedContent = null };
             }
 
-            if (!_jsonValidationService.ValidateJsonContent<MappedService>(content))
+            if (!_jsonValidationService.ValidateJsonContent<CertificationService>(content))
             {
                 return new CertificationServiceOutput { Document = null, ArchivedContent = null };
             }
 
-            var mappedServiceData = JsonConvert.DeserializeObject<MappedService>(content);
+            var mappedServiceData = JsonConvert.DeserializeObject<CertificationService>(content);
             if (mappedServiceData == null)
             {
                 _logger.LogError("Failed to deserialize content to MappedService.");
@@ -68,7 +68,7 @@ namespace azure_project_generator
 
         // Other methods remain unchanged
 
-        private CertificationServiceDocument CreateCertServiceDocument(MappedService data, string contextSentence, float[] contentVector) =>
+        private CertificationServiceDocument CreateCertServiceDocument(CertificationService data, string contextSentence, float[] contentVector) =>
            new CertificationServiceDocument
            {
                Id = Guid.NewGuid().ToString(),
