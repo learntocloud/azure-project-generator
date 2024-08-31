@@ -36,7 +36,7 @@ namespace azure_project_generator
             CertificationProjectPromptDocument certificationProjectPromptDocument = iterator.ReadNextAsync().Result.FirstOrDefault();
 
             float[] projectPromptVector = certificationProjectPromptDocument.ProjectPromptVector;
-            //"SELECT * FROM c WHERE c.certificationCode = {certificationCode}"
+ 
 
 
             var queryDef = new QueryDefinition(
