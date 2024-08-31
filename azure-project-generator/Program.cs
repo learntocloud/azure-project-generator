@@ -1,5 +1,6 @@
 using Azure;
 using Azure.AI.OpenAI;
+using Azure.Storage.Blobs;
 using azure_project_generator.services;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,11 +20,15 @@ var host = new HostBuilder()
         string keyFromEnvironment = config["AZURE_OPENAI_API_KEY"];
         string endpointFromEnvironment = config["AZURE_OPENAI_API_ENDPOINT"];
         string embeddingsDeployment = config["EMBEDDINGS_DEPLOYMENT"];
+        string azureWebJobsStorage = config["AzureWebJobsStorage"];
 
         if (string.IsNullOrEmpty(keyFromEnvironment) || string.IsNullOrEmpty(endpointFromEnvironment) || string.IsNullOrEmpty(embeddingsDeployment))
         {
             throw new InvalidOperationException("Required Azure OpenAI configuration is missing.");
         }
+
+        // Register BlobServiceClient as a singleton
+        services.AddSingleton(new BlobServiceClient(azureWebJobsStorage));
 
         AzureOpenAIClient azureClient = new(
             new Uri(endpointFromEnvironment),

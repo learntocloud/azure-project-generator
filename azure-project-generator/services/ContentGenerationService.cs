@@ -16,7 +16,7 @@ namespace azure_project_generator.services
             _embeddingClient = embeddingClient ?? throw new ArgumentNullException(nameof(embeddingClient));
         }
 
-        public string GenerateCertServiceContextSentence(MappedService data) =>
+        public string GenerateCertServiceContextSentence(CertificationService data) =>
             $"The {data.CertificationCode} {data.CertificationName} certification includes the skill of {data.SkillName}. Within this skill, there is a focus on the topic of {data.TopicName}, particularly through the use of the service {data.ServiceName}.";
 
         public string GenerateCertDataContextSentence(Certification certificationDocument)

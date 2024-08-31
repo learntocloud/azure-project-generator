@@ -2,7 +2,7 @@
 
 namespace azure_project_generator.models
 {
-    public class SkillMeasured
+    public class CertificationSkillMeasured
     {
         [Required]
         public string Name { get; set; }

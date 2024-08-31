@@ -1,8 +1,11 @@
+using Json.Schema;
+using Json.Schema.Generation;
+using Json.Schema.Serialization;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
-using Newtonsoft.Json.Schema;
-using Newtonsoft.Json.Schema.Generation;
 using System.Text.Json;
+using System.Text.Json.Nodes;
+
 
 namespace azure_project_generator.services
 {
@@ -20,17 +23,17 @@ namespace azure_project_generator.services
         {
             try
             {
-                var generator = new JSchemaGenerator();
-                JSchema schema = generator.Generate(typeof(T));
+                JsonSchemaBuilder jsonSchemaBuilder = new JsonSchemaBuilder();
+                var schema1 = jsonSchemaBuilder.FromType<T>().Build();
 
-                JToken jsonContent = JToken.Parse(content);
-                bool isValid = jsonContent.IsValid(schema, out IList<string> messages);
+                var result = schema1.Evaluate(JsonNode.Parse(content));
 
-                if (!isValid)
+
+                if (!result.IsValid)
                 {
-                    foreach (var message in messages)
+                    foreach (var error in result.Errors)
                     {
-                        _logger.LogError($"Schema validation error: {message}");
+                        _logger.LogError($"Schema validation error: {error.Key} + \": \" + {error.Value}");
                     }
                 }
                 else
@@ -38,7 +41,7 @@ namespace azure_project_generator.services
                     _logger.LogInformation("JSON content is valid against the schema.");
                 }
 
-                return isValid;
+                return result.IsValid;
             }
             catch (JsonException ex)
             {
