@@ -76,10 +76,10 @@ namespace azure_project_generator
                     }
                 }
             }
-               
 
+            string contextSentence = _contentGenerationService.GenerateCertDataContextSentence(certification);
 
-            float[] cerificationCodeVector = await _contentGenerationService.GenerateEmbeddingsAsync(certification.CertificationCode);
+            float[] cerificationCodeVector = await _contentGenerationService.GenerateEmbeddingsAsync(contextSentence);
 
             var certificationDocument = CreateCertificationProjectPromptDocument(certification, cerificationCodeVector);
 

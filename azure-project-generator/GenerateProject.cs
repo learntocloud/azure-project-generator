@@ -24,8 +24,7 @@ namespace azure_project_generator
         }
 
         [Function("GenerateProject")]
-        public async Task<HttpResponseData> Run([HttpTrigger(AuthorizationLevel.Function, "get")] HttpRequestData req, string certificationCode,
-
+        public async Task<HttpResponseData> Run([HttpTrigger(AuthorizationLevel.Function, "get")] HttpRequestData req, string certificationCode, string skillName,
              [CosmosDBInput(Connection = "CosmosDBConnection")] CosmosClient client)
         {
             var response = req.CreateResponse(HttpStatusCode.OK);
@@ -50,21 +49,21 @@ namespace azure_project_generator
             using FeedIterator<CertificationService> resultSetIterator =
                  client.GetContainer("AzureCertDB", "certvectors").GetItemQueryIterator<CertificationService>(queryDef);
 
-            string projectServices = "";
-            string projectSkills = "";
+            string projectService = "";
+            string projectSkill = "";
+            string topicName = "";
 
-            while (resultSetIterator.HasMoreResults)
-            {
-                FeedResponse<CertificationService> feedResponse = resultSetIterator.ReadNextAsync().Result;
-                foreach (var item in feedResponse)
-                {
-                    projectServices += item.ServiceName + " ";
-                    projectSkills += item.SkillName + " ";
 
-                }
-            }
+            CertificationService feedResponse = resultSetIterator.ReadNextAsync().Result.FirstOrDefault();
 
-            string cloudProjectIdea = await _contentGenerationService.GenerateProjectIdeaAsync(projectSkills, projectServices);
+            projectService += feedResponse.ServiceName + " ";
+            projectSkill += feedResponse.SkillName + " ";
+            topicName += feedResponse.TopicName + " ";
+
+
+
+
+            string cloudProjectIdea = await _contentGenerationService.GenerateProjectIdeaAsync(projectSkill, projectService, topicName);
 
             response.Headers.Add("Content-Type", "application/json");
             await response.WriteStringAsync(cloudProjectIdea);
