@@ -15,9 +15,7 @@ namespace azure_project_generator.models
         public string CertificationCode { get; set; }
         [JsonPropertyName("certificationName")]
         public string CertificationName { get; set; }
-        [JsonPropertyName("skillName")]
-        public string ProjectPrompt { get; set; }
-        [JsonPropertyName("projectPrompt")]
+        [JsonPropertyName("projectPromptVector")]
         public float[] ProjectPromptVector { get; set; }
     }
 }

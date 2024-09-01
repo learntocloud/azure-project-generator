@@ -21,6 +21,7 @@ var host = new HostBuilder()
         string endpointFromEnvironment = config["AZURE_OPENAI_API_ENDPOINT"];
         string embeddingsDeployment = config["EMBEDDINGS_DEPLOYMENT"];
         string azureWebJobsStorage = config["AzureWebJobsStorage"];
+        string completionsDeployment = config["COMPLETIONS_DEPLOYMENT"];
 
         if (string.IsNullOrEmpty(keyFromEnvironment) || string.IsNullOrEmpty(endpointFromEnvironment) || string.IsNullOrEmpty(embeddingsDeployment))
         {
@@ -36,6 +37,9 @@ var host = new HostBuilder()
 
         // Register EmbeddingClient as a singleton
         services.AddSingleton(azureClient.GetEmbeddingClient(embeddingsDeployment));
+
+        // Register ChatClient as a singleton
+        services.AddSingleton(azureClient.GetChatClient(completionsDeployment));
 
         // Register JsonValidationService
         services.AddSingleton<JsonValidationService>();

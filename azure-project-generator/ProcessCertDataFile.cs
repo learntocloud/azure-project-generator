@@ -79,10 +79,9 @@ namespace azure_project_generator
                
 
 
-            string contextSentence = _contentGenerationService.GenerateCertDataContextSentence(certification);
-            float[] contentVector = await _contentGenerationService.GenerateEmbeddingsAsync(contextSentence);
+            float[] cerificationCodeVector = await _contentGenerationService.GenerateEmbeddingsAsync(certification.CertificationCode);
 
-            var certificationDocument = CreateCertificationProjectPromptDocument(certification, contextSentence, contentVector);
+            var certificationDocument = CreateCertificationProjectPromptDocument(certification, cerificationCodeVector);
 
             _logger.LogInformation("Document created successfully.");
             _logger.LogInformation($"Archiving blob: {name}");
@@ -95,13 +94,12 @@ namespace azure_project_generator
             };
         }
 
-        private CertificationProjectPromptDocument CreateCertificationProjectPromptDocument(Certification data, string contextSentence, float[] contentVector) =>
+        private CertificationProjectPromptDocument CreateCertificationProjectPromptDocument(Certification data, float[] contentVector) =>
            new CertificationProjectPromptDocument
            {
                Id = Guid.NewGuid().ToString(),
                CertificationCode = data.CertificationCode,
                CertificationName = data.CertificationName,
-               ProjectPrompt = contextSentence,
                ProjectPromptVector = contentVector
            };
     }
