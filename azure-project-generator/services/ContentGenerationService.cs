@@ -3,9 +3,6 @@ using azure_project_generator.models;
 using Microsoft.Extensions.Logging;
 using OpenAI.Embeddings;
 using OpenAI.Chat;
-using System.Text.Json;
-using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 namespace azure_project_generator.services
@@ -26,7 +23,8 @@ namespace azure_project_generator.services
         public string GenerateCertServiceContextSentence(CertificationService data) =>
             $"The {data.CertificationCode} {data.CertificationName} certification includes the skill of {data.SkillName}. Within this skill, there is a focus on the topic of {data.TopicName}, particularly through the use of the service {data.ServiceName}.";
 
-
+        public string GenerateCertDataContextSentence(Certification data) =>
+            $"The {data.CertificationCode} {data.CertificationName} certification includes the following skills: {string.Join(", ", data.SkillsMeasured.Select(s => s.Name))}.";
         public async Task<float[]> GenerateEmbeddingsAsync(string content)
         {
             try
@@ -48,12 +46,12 @@ namespace azure_project_generator.services
             }
         }
 
-        public async Task<string> GenerateProjectIdeaAsync(string skills, string services)
+        public async Task<string> GenerateProjectIdeaAsync(string services, string skill)
         {
             string userPrompt = $@"You are an expert cloud architect. 
 Please generate a detailed project idea for a beginner-friendly weekend cloud solution 
-based on the following Azure certification skills: {skills}. 
-The project should utilize the following services: {services}.
+based on the following Azure certification skill: {skill}.
+The project should utilize the ONLY following services: {services}.
 The project should be small in scale, achievable over a weekend, and have a fun, creative name. Suitable for beginners. Cheap to run.
 The response must be formatted as valid JSON and include only the following fields:
 {{
@@ -68,7 +66,7 @@ The response must be formatted as valid JSON and include only the following fiel
         ""Step 5: Description of the fifth step""
     ]
 }}
-Ensure that the project idea is practical, aligned with beginner-level skills, and leverages best practices in Azure architecture.";
+Ensure that the project idea is practical, aligned with beginner-level skills, and leverages best practices in Azure architecture.  Small in scope";
 
             try
             {
