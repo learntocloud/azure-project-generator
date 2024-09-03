@@ -1,13 +1,9 @@
-using Azure;
 using azure_project_generator.models;
 using azure_project_generator.services;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using System.Net;
 
 namespace azure_project_generator
@@ -30,16 +26,10 @@ namespace azure_project_generator
             var response = req.CreateResponse(HttpStatusCode.OK);
             _logger.LogInformation("C# HTTP trigger function processed a request.");
 
-            var query = new QueryDefinition("SELECT * FROM c WHERE c.certificationCode = @certificationCode")
-                     .WithParameter("@certificationCode", certificationCode);
-
-            var iterator = client.GetContainer("AzureCertDB", "projectpromptvectors")
-                                 .GetItemQueryIterator<CertificationProjectPromptDocument>(query);
-
-
-            CertificationProjectPromptDocument certificationProjectPromptDocument = iterator.ReadNextAsync().Result.FirstOrDefault();
-
-            float[] projectPromptVector = certificationProjectPromptDocument.ProjectPromptVector;
+     
+            string projectPrompt = "I need a project idea for the certification exam " + certificationCode + " for the skill " + skillName;
+            
+            float[] projectPromptVector = _contentGenerationService.GenerateEmbeddingsAsync(projectPrompt).Result;
 
             var queryDef = new QueryDefinition
                 (query: $"SELECT c.serviceName, c.skillName, c.topicName, VectorDistance(c.contextVector,@embedding) " +
@@ -49,21 +39,18 @@ namespace azure_project_generator
             using FeedIterator<CertificationService> resultSetIterator =
                  client.GetContainer("AzureCertDB", "certvectors").GetItemQueryIterator<CertificationService>(queryDef);
 
-            string projectService = "";
-            string projectSkill = "";
-            string topicName = "";
+            string projectServices = "";
 
+            while (resultSetIterator.HasMoreResults)
+            {
+                FeedResponse<CertificationService> feedResponse = resultSetIterator.ReadNextAsync().Result;
+                foreach (var item in feedResponse)
+                {
+                    projectServices += item.ServiceName + " ";
+                }
+            }
 
-            CertificationService feedResponse = resultSetIterator.ReadNextAsync().Result.FirstOrDefault();
-
-            projectService += feedResponse.ServiceName + " ";
-            projectSkill += feedResponse.SkillName + " ";
-            topicName += feedResponse.TopicName + " ";
-
-
-
-
-            string cloudProjectIdea = await _contentGenerationService.GenerateProjectIdeaAsync(projectSkill, projectService, topicName);
+            string cloudProjectIdea = await _contentGenerationService.GenerateProjectIdeaAsync(projectServices, skillName);
 
             response.Headers.Add("Content-Type", "application/json");
             await response.WriteStringAsync(cloudProjectIdea);

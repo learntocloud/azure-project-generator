@@ -46,12 +46,12 @@ namespace azure_project_generator.services
             }
         }
 
-        public async Task<string> GenerateProjectIdeaAsync(string skill, string service, string topic)
+        public async Task<string> GenerateProjectIdeaAsync(string services, string skill)
         {
             string userPrompt = $@"You are an expert cloud architect. 
 Please generate a detailed project idea for a beginner-friendly weekend cloud solution 
-based on the following Azure certification skill: {skill} and topic: {topic}.
-The project should utilize the ONLY following services: {service}.
+based on the following Azure certification skill: {skill}.
+The project should utilize the ONLY following services: {services}.
 The project should be small in scale, achievable over a weekend, and have a fun, creative name. Suitable for beginners. Cheap to run.
 The response must be formatted as valid JSON and include only the following fields:
 {{
