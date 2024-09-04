@@ -17,7 +17,6 @@ namespace azure_project_generator.services
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _embeddingClient = embeddingClient ?? throw new ArgumentNullException(nameof(embeddingClient));
             _completionsClient = completionsClient ?? throw new ArgumentNullException(nameof(completionsClient));
-
         }
 
         public string GenerateCertServiceContextSentence(CertificationService data) =>
