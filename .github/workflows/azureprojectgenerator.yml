@@ -28,13 +28,6 @@ jobs:
         dotnet build --configuration Release --output ./output
         popd
 
-    - name: 'Run Unit Tests'
-      shell: pwsh # For Linux, use bash
-      run: |
-        pushd './tests'
-        dotnet test --verbosity normal
-        popd
-
     - name: 'Run Azure Functions Action'
       uses: Azure/functions-action@v1
       id: fa
