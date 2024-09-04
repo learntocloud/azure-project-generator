@@ -5,7 +5,7 @@ on:
     - generatesmallerprojects
 env:
   AZURE_FUNCTIONAPP_NAME: azureprojectgenerator
-  AZURE_FUNCTIONAPP_PACKAGE_PATH: azure-project-generator/published
+  AZURE_FUNCTIONAPP_PACKAGE_PATH: azure-project-generator
   DOTNET_VERSION: 8.0.x
 
 jobs:
