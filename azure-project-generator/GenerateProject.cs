@@ -26,7 +26,6 @@ namespace azure_project_generator
             var response = req.CreateResponse(HttpStatusCode.OK);
             _logger.LogInformation("C# HTTP trigger function processed a request.");
 
-     
             string projectPrompt = "I need a project idea for the certification exam " + certificationCode + " for the skill " + skillName;
             
             float[] projectPromptVector = _contentGenerationService.GenerateEmbeddingsAsync(projectPrompt).Result;
