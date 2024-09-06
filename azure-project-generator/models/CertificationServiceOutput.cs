@@ -13,8 +13,5 @@ namespace azure_project_generator.models
         [CosmosDBOutput("%CosmosDb%", "%CertificationServiceOut%", Connection = "CosmosDBConnection")]
         public CertificationServiceDocument Document { get; set; }
 
-        [BlobOutput("certservicearchive/{name}", Connection = "AzureWebJobsStorage")]
-        public string ArchivedContent { get; set; }
-
     }
 }
