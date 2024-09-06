@@ -35,19 +35,19 @@ namespace azure_project_generator
             if (string.IsNullOrWhiteSpace(content))
             {
                 _logger.LogError("Blob content is empty or whitespace.");
-                return new CertificationServiceOutput { Document = null, ArchivedContent = null };
+                return new CertificationServiceOutput { Document = null};
             }
 
             if (!_jsonValidationService.ValidateJsonContent<CertificationService>(content))
             {
-                return new CertificationServiceOutput { Document = null, ArchivedContent = null };
+                return new CertificationServiceOutput { Document = null };
             }
 
             var mappedServiceData = JsonConvert.DeserializeObject<CertificationService>(content);
             if (mappedServiceData == null)
             {
                 _logger.LogError("Failed to deserialize content to MappedService.");
-                return new CertificationServiceOutput { Document = null, ArchivedContent = null };
+                return new CertificationServiceOutput { Document = null };
             }
 
             string contextSentence = _contentGenerationService.GenerateCertServiceContextSentence(mappedServiceData);
@@ -62,7 +62,7 @@ namespace azure_project_generator
             return new CertificationServiceOutput
             {
                 Document = certServiceDocument,
-                ArchivedContent = content
+             
             };
         }
 

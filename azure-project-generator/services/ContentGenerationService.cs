@@ -3,7 +3,7 @@ using azure_project_generator.models;
 using Microsoft.Extensions.Logging;
 using OpenAI.Embeddings;
 using OpenAI.Chat;
-using Newtonsoft.Json.Linq;
+using Newtonsoft.Json;
 
 namespace azure_project_generator.services
 {
@@ -45,34 +45,33 @@ namespace azure_project_generator.services
             }
         }
 
-        public async Task<string> GenerateProjectIdeaAsync(string services, string skill)
+        public async Task<string> GenerateProjectIdeaAsync(List<string> services, string skill, string topic)
         {
-            string userPrompt = $@"You are an expert cloud architect. 
-Please generate a detailed project idea for a beginner-friendly weekend cloud solution 
-based on the following Azure certification skill: {skill}.
-The project should utilize the ONLY following services: {services}.
-The project should be small in scale, achievable over a weekend, and have a fun, creative name. Suitable for beginners. Cheap to run.
-The response must be formatted as valid JSON and include only the following fields:
-{{
-    ""projectName"": ""A fun and creative project name"",
-    ""description"": ""A brief, engaging description of the project, highlighting its purpose and main features."",
-    ""learningGoals"": [""Goal 1"", ""Goal 2"", ""Goal 3""],
-    ""steps"": [
-        ""Step 1: Description of the first step"",
-        ""Step 2: Description of the second step"",
-        ""Step 3: Description of the third step"",
-        ""Step 4: Description of the fourth step"",
-        ""Step 5: Description of the fifth step""
-    ]
-}}
-Ensure that the project idea is practical, aligned with beginner-level skills, and leverages best practices in Azure architecture.  Small in scope";
+            string userPrompt = $@"You are a cloud architect specializing in Azure architecture.
+                    Please generate a detailed project idea for a small, practical cloud solution based on the following Azure certification skill: {skill} and topic: {topic}.
+                    The project should utilize ONLY the following services: {services}.
+                    The project should focus on key technical steps without any subjective descriptions or recommendations.
+                    The response must be formatted as valid JSON and include only the following fields:
+                                {{
+                                    ""title"": ""A concise, descriptive project name"",
+                        ""description"": ""A factual description of the project, highlighting its technical purpose and main features."",
+                        ""steps"": [
+                            ""Step 1: Description of the first technical step"",
+                            ""Step 2: Description of the second technical step"",
+                            ""Step 3: Description of the third technical step"",
+                            ""Step 4: Description of the fourth technical step"",
+                            ""Step 5: Description of the fifth technical step""
+                                    ]
+                                }}
+                             Ensure that the project idea is focused purely on technical details, aligned with best practices in Azure architecture, and small in scope.";
 
             try
             {
                 _logger.LogInformation("Generating project idea...");
                 ChatCompletion completion = await _completionsClient.CompleteChatAsync(new ChatMessage[]
                 {
-                new SystemChatMessage("You are a technical assistant specialized in generating beginner-friendly cloud project ideas. Provide the response in JSON format only, without any additional text."),
+                new SystemChatMessage("You are a cloud engineer and mentor specialized in generating " +
+                "beginner-friendly cloud project ideas. Provide the response in JSON format only, without any additional text."),
                 new UserChatMessage(userPrompt)
                 });
 
@@ -90,21 +89,22 @@ Ensure that the project idea is practical, aligned with beginner-level skills, a
                     .Replace("json\n", string.Empty)
                     .Trim();
 
-                JObject jsonObject = JObject.Parse(cleanedJsonContent);
+                // deserialize to CloudProjectIdea object
 
-                // Validate that all required fields are present
-                string[] requiredFields = { "projectName", "description", "learningGoals", "steps"};
-                foreach (var field in requiredFields)
+                CloudProjectIdea cloudProjectIdea = JsonConvert.DeserializeObject<CloudProjectIdea>(cleanedJsonContent);
+                foreach (var service in services)
                 {
-                    if (!jsonObject.ContainsKey(field))
-                    {
-                        _logger.LogWarning($"Generated JSON is missing required field: {field}");
-                        throw new System.Text.Json.JsonException($"Generated project idea is missing required field: {field}");
+                    // Properly encode the skill, topic, and service
+                    string encodedTopic = System.Net.WebUtility.UrlEncode(topic);
+                    string encodedService = System.Net.WebUtility.UrlEncode(service);
 
-                    }
+                    // Construct the URL using the encoded values
+                    cloudProjectIdea.Resources.Add($"https://learn.microsoft.com/search/?terms={encodedTopic}%20{encodedService}&category=Training");
                 }
 
-                return jsonObject.ToString();
+                string jsonString = JsonConvert.SerializeObject(cloudProjectIdea);
+
+                return jsonString;
             }
             catch (System.Text.Json.JsonException ex)
             {
