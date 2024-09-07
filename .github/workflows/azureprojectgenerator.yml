@@ -2,7 +2,7 @@ name: Build and deploy .NET Core application to Function App azureprojectgenerat
 on:
   push:
     branches:
-    - generatesmallerprojects
+    - main
 env:
   AZURE_FUNCTIONAPP_NAME: azureprojectgenerator
   AZURE_FUNCTIONAPP_PACKAGE_PATH: azure-project-generator
