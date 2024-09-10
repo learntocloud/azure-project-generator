@@ -91,7 +91,15 @@ namespace azure_project_generator.services
 
                 // deserialize to CloudProjectIdea object
 
-                CloudProjectIdea cloudProjectIdea = JsonConvert.DeserializeObject<CloudProjectIdea>(cleanedJsonContent);
+                CloudProjectIdea? cloudProjectIdea = JsonConvert.DeserializeObject<CloudProjectIdea>(cleanedJsonContent);
+                if (cloudProjectIdea == null)
+                {
+                    _logger.LogError("Deserialization returned null for project idea.");
+                    throw new Exception("Failed to deserialize project idea.");
+                }
+                // Ensure Steps is initialized if it's null
+                cloudProjectIdea.Steps ??= new List<string>();
+
                 foreach (var service in services)
                 {
                     // Properly encode the skill, topic, and service
@@ -102,6 +110,7 @@ namespace azure_project_generator.services
                     cloudProjectIdea.Resources.Add($"https://learn.microsoft.com/search/?terms={encodedTopic}%20{encodedService}&category=Training");
                 }
 
+                
                 string jsonString = JsonConvert.SerializeObject(cloudProjectIdea);
 
                 return jsonString;

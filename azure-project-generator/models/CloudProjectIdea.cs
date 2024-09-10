@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,15 +9,13 @@ namespace azure_project_generator.models
 {
     public class CloudProjectIdea
     {
-        public string Title { get; set; }
-        public string Description { get; set; }
-        public List<string> Steps { get; set; }
-        public List<string> Resources { get; set; }
+        public string? Title { get; set; }
+        public string? Description { get; set; }
+        public List<string>? Steps { get; set; }
 
-        // Constructor to initialize Resources
-        public CloudProjectIdea()
-        {
-            Resources = new List<string>();
-        }
+        [JsonProperty(NullValueHandling = NullValueHandling.Ignore)]
+        public List<string> Resources { get; set; } = new List<string>();
+
+      
     }
 }

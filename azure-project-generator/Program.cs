@@ -17,17 +17,18 @@ var host = new HostBuilder()
         var config = context.Configuration;
 
         // Initialize Azure OpenAI client
-        string keyFromEnvironment = config["AZURE_OPENAI_API_KEY"];
-        string endpointFromEnvironment = config["AZURE_OPENAI_API_ENDPOINT"];
-        string embeddingsDeployment = config["EMBEDDINGS_DEPLOYMENT"];
-        string azureWebJobsStorage = config["AzureWebJobsStorage"];
-        string completionsDeployment = config["COMPLETIONS_DEPLOYMENT"];
+
+        string? keyFromEnvironment = config["AZURE_OPENAI_API_KEY"];
+        string? endpointFromEnvironment = config["AZURE_OPENAI_API_ENDPOINT"];
+        string? embeddingsDeployment = config["EMBEDDINGS_DEPLOYMENT"];
+        string? azureWebJobsStorage = config["AzureWebJobsStorage"];
+        string? completionsDeployment = config["COMPLETIONS_DEPLOYMENT"];
 
         if (string.IsNullOrEmpty(keyFromEnvironment) || string.IsNullOrEmpty(endpointFromEnvironment) || string.IsNullOrEmpty(embeddingsDeployment))
         {
             throw new InvalidOperationException("Required Azure OpenAI configuration is missing.");
         }
-
+       
         // Register BlobServiceClient as a singleton
         services.AddSingleton(new BlobServiceClient(azureWebJobsStorage));
 
