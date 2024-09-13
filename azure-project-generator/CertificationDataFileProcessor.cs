@@ -1,23 +1,23 @@
+using Azure.Storage.Blobs;
 using azure_project_generator.models;
 using azure_project_generator.services;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using OpenAI.Embeddings;
-using Azure.Storage.Blobs;
 using System.Text;
 
 namespace azure_project_generator
 {
-    public class ProcessCertDataFile
+    public class CertificationDataFileProcessor
     {
-        private readonly ILogger<ProcessCertServiceFile> _logger;
+        private readonly ILogger<CertificationServiceFileProcessor> _logger;
         private readonly EmbeddingClient _embeddingClient;
         private readonly JsonValidationService _jsonValidationService;
         private readonly ContentGenerationService _contentGenerationService;
         private readonly BlobServiceClient _blobServiceClient;
 
-        public ProcessCertDataFile(ILogger<ProcessCertServiceFile> logger,
+        public CertificationDataFileProcessor(ILogger<CertificationServiceFileProcessor> logger,
             EmbeddingClient embeddingClient,
             JsonValidationService jsonValidationService,
             ContentGenerationService contentGenerationService, BlobServiceClient blobServiceClient)
@@ -29,7 +29,7 @@ namespace azure_project_generator
             _blobServiceClient = blobServiceClient ?? throw new ArgumentNullException(nameof(blobServiceClient));
         }
 
-        [Function(nameof(ProcessCertDataFile))]
+        [Function(nameof(CertificationDataFileProcessor))]
         public async Task<CertificationProjectPromptOutput> Run([BlobTrigger("certdata/{name}", Connection = "AzureWebJobsStorage")] string content, string name)
         {
 
