@@ -4,8 +4,8 @@ using azure_project_generator.models;
 using azure_project_generator.services;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using OpenAI.Embeddings;
+using System.Text.Json;
 
 
 
@@ -18,6 +18,8 @@ namespace azure_project_generator
         private readonly JsonValidationService _jsonValidationService;
         private readonly ContentGenerationService _contentGenerationService;
         private readonly BlobServiceClient _blobServiceClient;
+        private const string ContainerName = "certservice";
+       
 
         public ProcessCertServiceFile(ILogger<ProcessCertServiceFile> logger,
             EmbeddingClient embeddingClient,
@@ -33,14 +35,20 @@ namespace azure_project_generator
 
         [Function(nameof(ProcessCertServiceFile))]
         public async Task<CertificationServiceOutput> Run(
-           [BlobTrigger("certservice/{name}", Connection = "AzureWebJobsStorage")] string content,
+           [BlobTrigger($"{ContainerName}/{{name}}", Connection = "AzureWebJobsStorage")] string content,
            string name)
         {
             _logger.LogInformation($"Processing blob: {name}");
+            CertificationServiceDocument certServiceDocument = new CertificationServiceDocument();
 
             if (string.IsNullOrWhiteSpace(content))
             {
                 _logger.LogError("Blob content is empty or whitespace.");
+                return new CertificationServiceOutput { Document = null };
+            }
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                _logger.LogError("Blob name is null or empty.");
                 return new CertificationServiceOutput { Document = null };
             }
 
@@ -52,51 +60,39 @@ namespace azure_project_generator
 
             try
             {
-                var mappedServiceData = JsonConvert.DeserializeObject<CertificationService>(content);
-                if (mappedServiceData == null)
+                var mappedServiceData = JsonSerializer.Deserialize<CertificationService>(content);
+            
+                string contextSentence = _contentGenerationService.GenerateCertServiceContextSentence(mappedServiceData);
+                if (string.IsNullOrEmpty(contextSentence))
                 {
-                    _logger.LogError("Failed to deserialize content to CertificationService.");
+                    _logger.LogError("Context sentence generation failed.");
                     return new CertificationServiceOutput { Document = null };
                 }
+                float[] contentVector = await _contentGenerationService.GenerateEmbeddingsAsync(contextSentence).ConfigureAwait(false);
 
-                string contextSentence = _contentGenerationService.GenerateCertServiceContextSentence(mappedServiceData);
-                float[] contentVector = await _contentGenerationService.GenerateEmbeddingsAsync(contextSentence);
 
-                var certServiceDocument = CreateCertServiceDocument(mappedServiceData, contextSentence, contentVector);
+                certServiceDocument = CreateCertServiceDocument(mappedServiceData, contextSentence, contentVector);
+                _logger.LogInformation("Document created successfully.");             
 
-                _logger.LogInformation("Document created successfully.");
-                _logger.LogInformation($"Deleting blob: {name}");
-
-                // delete the blob
-                BlobContainerClient blobContainerClient = _blobServiceClient.GetBlobContainerClient("certservice");
-                BlobClient blobClient = blobContainerClient.GetBlobClient(name);
-                await blobClient.DeleteAsync();
-
-                return new CertificationServiceOutput
-                {
-                    Document = certServiceDocument,
-                };
             }
-            catch (JsonException jsonEx)
+            catch (Exception ex) when (ex is JsonException || ex is HttpRequestException || ex is RequestFailedException)
             {
-                _logger.LogError($"JSON error occurred: {jsonEx.Message}");
+                _logger.LogError(ex, $"An error occurred while processing blob {name}: {ex.Message}");
                 return new CertificationServiceOutput { Document = null };
             }
-            catch (HttpRequestException httpEx)
+            try
             {
-                _logger.LogError($"HTTP request error occurred: {httpEx.Message}");
-                return new CertificationServiceOutput { Document = null };
+                await _blobServiceClient.GetBlobContainerClient(ContainerName).GetBlobClient(name).DeleteIfExistsAsync();
+                _logger.LogInformation($"Blob {name} deleted successfully.");
             }
-            catch (RequestFailedException storageEx)
+            catch (RequestFailedException ex)
             {
-                _logger.LogError($"Azure Storage error occurred: {storageEx.Message}");
-                return new CertificationServiceOutput { Document = null };
+                _logger.LogError(ex, $"An error occurred while deleting blob {name}: {ex.Message}");
             }
-            catch (Exception ex)
+            return new CertificationServiceOutput
             {
-                _logger.LogError($"An unexpected error occurred: {ex.Message}");
-                return new CertificationServiceOutput { Document = null };
-            }
+                Document = certServiceDocument,
+            };
         }
 
         private CertificationServiceDocument CreateCertServiceDocument(CertificationService data, string contextSentence, float[] contentVector) =>
