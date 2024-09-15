@@ -5,6 +5,7 @@ using azure_project_generator.services;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using StackExchange.Redis;
 
 var host = new HostBuilder()
     .ConfigureFunctionsWebApplication()
@@ -23,12 +24,13 @@ var host = new HostBuilder()
         string? embeddingsDeployment = config["EMBEDDINGS_DEPLOYMENT"];
         string? azureWebJobsStorage = config["AzureWebJobsStorage"];
         string? completionsDeployment = config["COMPLETIONS_DEPLOYMENT"];
+        string? redisConnectionString = config["REDIS_CONNECTION_STRING"];
 
-        if (string.IsNullOrEmpty(keyFromEnvironment) || string.IsNullOrEmpty(endpointFromEnvironment) || string.IsNullOrEmpty(embeddingsDeployment))
+        if (string.IsNullOrEmpty(keyFromEnvironment) || string.IsNullOrEmpty(endpointFromEnvironment) || string.IsNullOrEmpty(embeddingsDeployment) || string.IsNullOrEmpty(redisConnectionString))
         {
-            throw new InvalidOperationException("Required Azure OpenAI configuration is missing.");
+            throw new InvalidOperationException("Required Azure OpenAI or Redis configuration is missing.");
         }
-       
+
         // Register BlobServiceClient as a singleton
         services.AddSingleton(new BlobServiceClient(azureWebJobsStorage));
 
@@ -47,7 +49,12 @@ var host = new HostBuilder()
 
         // Register ContentGenerationService
         services.AddSingleton<ContentGenerationService>();
+
+        // Register RedisCache as a singleton
+        services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(redisConnectionString));
+
     })
     .Build();
 
 host.Run();
+
